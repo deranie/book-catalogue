@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Book Catalogue{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-box">
+        <h2>Login to Your Book Catalogue</h2>
+        
+        <form method="POST" action="{{ url_for('login') }}">
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" required autofocus>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Login</button>
+        </form>
+        
+        <div class="test-credentials">
+            <h3>Test Credentials:</h3>
+            <p><strong>Username:</strong> admin | <strong>Password:</strong> admin123</p>
+            <p><strong>Username:</strong> user1 | <strong>Password:</strong> password1</p>
+            <p><strong>Username:</strong> user2 | <strong>Password:</strong> password2</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
