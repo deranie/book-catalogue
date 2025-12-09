@@ -2,9 +2,13 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 import sqlite3
 import requests
 from functools import wraps
+import logging
 
 app = Flask(__name__)
 app.secret_key = 'my-secret-key-shall cgange-in-production'
+
+# Optional: basic logging to help debug session issues
+logging.basicConfig(level=logging.DEBUG)
 
 DATABASE = 'books.db'
 
@@ -46,6 +50,11 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """Login page"""
+    # If already logged in, send to index to avoid showing the login form again
+    if 'user_id' in session:
+        app.logger.debug(f"User already in session: {dict(session)}")
+        return redirect(url_for('index'))
+
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
@@ -59,9 +68,13 @@ def login():
         if user:
             session['user_id'] = user['id']
             session['username'] = user['username']
+            # ensure session is marked as modified (helps in some setups)
+            session.modified = True
+            app.logger.debug(f"Session after login (POST): {dict(session)}")
             flash('Login successful!', 'success')
             return redirect(url_for('index'))
         else:
+            app.logger.debug(f"Failed login attempt for username: {username}")
             flash('Invalid username or password.', 'error')
     
     return render_template('login.html')
@@ -106,49 +119,4 @@ def search_book():
         # Get thumbnail URL (extra credit)
         thumbnail = None
         if 'imageLinks' in book_info:
-            thumbnail = book_info['imageLinks'].get('thumbnail', None)
-        
-        # Save to database
-        db = get_db()
-        db.execute(
-            '''INSERT INTO books (user_id, isbn, title, author, page_count, average_rating, thumbnail)
-               VALUES (?, ?, ?, ?, ?, ?, ?)''',
-            (session['user_id'], isbn, title, authors, page_count, average_rating, thumbnail)
-        )
-        db.commit()
-        
-        flash(f'Book "{title}" added successfully!', 'success')
-        
-    except requests.exceptions.RequestException as e:
-        flash(f'Error connecting to Google Books API: {str(e)}', 'error')
-    except KeyError as e:
-        flash(f'Error processing book data: {str(e)}', 'error')
-    except Exception as e:
-        flash(f'An unexpected error occurred: {str(e)}', 'error')
-    
-    return redirect(url_for('index'))
-
-@app.route('/delete/<int:book_id>', methods=['POST'])
-@login_required
-def delete_book(book_id):
-    """Delete a book from user's collection"""
-    db = get_db()
-    
-    # Check if book belongs to current user
-    book = db.execute(
-        'SELECT * FROM books WHERE id = ? AND user_id = ?',
-        (book_id, session['user_id'])
-    ).fetchone()
-    
-    if book:
-        db.execute('DELETE FROM books WHERE id = ?', (book_id,))
-        db.commit()
-        flash('Book deleted successfully!', 'success')
-    else:
-        flash('Book not found or access denied.', 'error')
-    
-    return redirect(url_for('index'))
-
-if __name__ == '__main__':
-    init_db()
-    app.run(debug=True)
+            thumbnail = book_info['imageLinks'].get('thumbnail')
